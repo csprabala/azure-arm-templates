@@ -48,28 +48,22 @@
                 "description": "Name of the subnet in the virtual network you want to use"
             }
         },
-        "aadClientID": {
+        "existingStorageAccountName": {
             "type": "string",
             "metadata": {
-                "description": "Client ID of AAD app which has permissions to KeyVault"
+                "description": "Storage account name"
             }
         },
-        "aadClientSecret": {
-            "type": "securestring",
-            "metadata": {
-                "description": "Client Secret of AAD app which has permissions to KeyVault"
-            }
-        },
-        "keyVaultName": {
+        "keyVaultResourceID": {
             "type": "string",
             "metadata": {
-                "description": "Name of the KeyVault to place the volume encryption key"
+                "description": "KeyVault resource id. Ex: /subscriptions/subscriptionid/resourceGroups/contosorg/providers/Microsoft.KeyVault/vaults/contosovault"
             }
         },
-        "keyVaultResourceGroup": {
+        "keyVaultSecretUrl": {
             "type": "string",
             "metadata": {
-                "description": "Resource group of the KeyVault"
+                "description": "KeyVault secret Url. Ex: https://contosovault.vault.azure.net/secrets/contososecret/e088818e865e48488cf363af16dea596"
             }
         },
         "useExistingKek": {
@@ -80,14 +74,14 @@
                 "kek"
             ],
             "metadata": {
-                "description": "Select kek if the secret should be encrypted with a key encryption key and pass explicit keyEncryptionKeyURL. For nokek, you can keep keyEncryptionKeyURL empty."
+                "description": "Select kek if the secret is encrypted with a key encryption key and pass explicit keyVaultKekUrl. For nokek, you can keep keyVaultKekUrl empty."
             }
         },
-        "keyEncryptionKeyURL": {
+        "keyVaultKekUrl": {
             "type": "string",
             "defaultValue": "",
             "metadata": {
-                "description": "URL of the KeyEncryptionKey used to encrypt the volume encryption key"
+                "description": "KeyVault key encryption key Url. Ex: https://contosovault.vault.azure.net/keys/contosokek/562a4bb76b524a1493a6afe8e536ee78"
             }
         }
     },
@@ -97,7 +91,8 @@
         "vnetID": "[resourceId(parameters('existingVirtualNetworkResourceGroup'), 'Microsoft.Network/virtualNetworks', parameters('existingVirtualNetworkName'))]",
         "subnetRef": "[concat(variables('vnetID'),'/subnets/', parameters('subnetName'))]",
         "nicName": "[concat(parameters('vmName'), '-nic1')]",
-        "publicIPAddressName": "[concat(parameters('vmName'), '-pip')]"
+        "publicIPAddressName": "[concat(parameters('vmName'), '-pip')]",
+        "setupVmUrl": "[concat('https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/201-encrypt-create-pre-encrypted-vm/setupvm-',parameters('useExistingKek'),'.json')]"
     },
     "resources": [{
             "apiVersion": "2016-01-01",
@@ -188,41 +183,45 @@
             }
         },
         {
-            "name": "UpdateEncryptionSettings",
+            "name": "setupvmprofile",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [
-                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
             ],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
-                    "uri": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/201-encrypt-running-windows-vm/azuredeploy.json",
+                    "uri": "[variables('setupVmUrl')]",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
                     "vmName": {
                         "value": "[parameters('vmName')]"
                     },
-                    "aadClientID": {
-                        "value": "[parameters('aadClientID')]"
+                    "existingStorageAccountName": {
+                        "value": "[parameters('existingStorageAccountName')]"
                     },
-                    "aadClientSecret": {
-                        "value": "[parameters('aadClientSecret')]"
+                    "osVhdUri": {
+                        "value": "[parameters('osDiskVhdUri')]"
                     },
-                    "keyVaultName": {
-                        "value": "[parameters('keyVaultName')]"
+                    "osType": {
+                        "value": "[parameters('osType')]"
                     },
-                    "keyVaultResourceGroup": {
-                        "value": "[parameters('keyVaultResourceGroup')]"
+                    "vmSize": {
+                        "value": "[parameters('vmSize')]"
                     },
-                    "useExistingKek": {
-                        "value": "[parameters('useExistingKek')]"
+                    "keyVaultResourceID": {
+                        "value": "[parameters('keyVaultResourceID')]"
                     },
-                    "keyEncryptionKeyURL": {
-                        "value": "[parameters('keyEncryptionKeyURL')]"
+                    "keyVaultSecretUrl": {
+                        "value": "[parameters('keyVaultSecretUrl')]"
+                    },
+                    "keyVaultKekUrl": {
+                        "value": "[parameters('keyVaultKekUrl')]"
                     }
                 }
+
             }
         }
     ]
